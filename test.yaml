@@ -1,0 +1,53 @@
+---
+- name: installing tomcat
+  hosts: all
+  become: yes
+  tasks:
+    - name: install openjdk
+      ansible.builtin.apt:
+        name: openjdk-11-jdk
+        update_cache: yes
+        state: present
+    - name: add tomcat group
+      ansible.builtin.group:
+        name: tomcat
+        state: present
+    - name: add tomcat user
+      ansible.builtin.user:
+        name: tomcat
+        create_home: yes
+        group: tomcat
+        home: /opt/tomcat
+        shell: /bin/false
+        state: present
+    - name: dowload and extract tomcat
+      ansible.builtin.unarchive:
+        src: https://www-eu.apache.org/dist/tomcat/tomcat-10/v10.1.5/bin/apache-tomcat-10.1.5.tar.gz
+        remote_src: yes
+        dest: /opt/tomcat
+    - name: symbolic link for tomcat latest
+      ansible.builtin.file:
+        src: /opt/tomcat/apache-tomcat-10.1.5
+        dest: /opt/tomcat/latest
+        state: link
+    - name: permissions to tomcat
+      ansible.builtin.file:
+        dest: /opt/tomcat
+        recurse: yes
+        owner: tomcat
+        group: tomcat
+        state: directory
+    - name: execution permissions to inside /opt/tomcat/latest/bin/ shell files
+      ansible.builtin.command: sudo sh -c 'chmod +x /opt/tomcat/latest/bin/*.sh'
+    - name: copy tomcat service file to remote
+      ansible.builtin.copy:
+        src: tomcat.service
+        dest: /etc/systemd/system/tomcat.service
+        owner: tomcat
+        group: tomcat
+    - name: do daemon reload and start the tomcat service
+      ansible.builtin.systemd:
+        name: tomcat.service
+        daemon_reload: yes
+        enabled: yes
+        state: started
